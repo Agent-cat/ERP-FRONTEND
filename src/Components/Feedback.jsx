@@ -1,22 +1,54 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import Data from "./Data";
+
 function Feedback() {
   const [data, setData] = useState([]);
-  fetch("http://localhost:3008/api/feedback/result")
-    .then((res) => res.json())
-    .then((data) => {
-      setData(data);
-    });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch("http://localhost:3008/api/feedback/result");
+        const feedbackData = await res.json();
+        setData(feedbackData);
+      } catch (err) {
+        console.error("Error fetching feedback:", err);
+      }
+    };
+    fetchData();
+  }, []);
 
   useGSAP(() => {
     gsap.from(".headding", {
       opacity: 0,
-
       duration: 1,
     });
   });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await fetch("http://localhost:3008/api/feedback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fName: document.getElementById("fName").value,
+          cName: document.getElementById("cName").value,
+          cSkills: document.getElementById("cSkills").value,
+        }),
+      });
+
+      // Refresh data after submission
+      const res = await fetch("http://localhost:3008/api/feedback/result");
+      const newData = await res.json();
+      setData(newData);
+    } catch (err) {
+      console.error("Error submitting feedback:", err);
+    }
+  };
 
   return (
     <div className="w-full h-[85vh]  mx-auto overflow-scroll  p-4 bg-white shadow-md rounded-lg">
@@ -24,7 +56,7 @@ function Feedback() {
         Feedback
       </h1>
 
-      <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label
             htmlFor="fName"
@@ -73,21 +105,7 @@ function Feedback() {
         <center>
           <button
             type="submit"
-            onSubmit={(e) => e.preventDefault()}
             className="mt-2 w-[15%] font-bold bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-800"
-            onClick={() => {
-              fetch("http://localhost:3008/api/feedback", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  fName: document.getElementById("fName").value,
-                  cName: document.getElementById("cName").value,
-                  cSkills: document.getElementById("cSkills").value,
-                }),
-              });
-            }}
           >
             Submit
           </button>
