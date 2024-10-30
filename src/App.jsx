@@ -10,6 +10,9 @@ function App() {
   const [error, setError] = useState(false);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isSignup, setIsSignup] = useState(false);
+  const [showOTPInput, setShowOTPInput] = useState(false);
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
@@ -64,44 +67,183 @@ function App() {
     localStorage.removeItem("authToken");
     localStorage.removeItem("userData");
     setLoading(true);
+    setShowOTPInput(false);
+    setIsSignup(false);
+    setError(false);
+    setUserId(null);
+  };
+
+  const handleSignup = async () => {
+    setLoading1(true);
+    setError(false);
+    try {
+      const signupData = {
+        Email: document.getElementById("email").value,
+        Password: document.getElementById("password").value,
+        Username: document.getElementById("username").value,
+      };
+
+      console.log("Sending signup request:", signupData);
+
+      const res = await fetch("http://localhost:3008/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(signupData),
+      });
+
+      const data = await res.json();
+      console.log("Signup response:", data);
+
+      setLoading1(false);
+
+      if (data.msg === "verification_pending") {
+        setUserId(data.userId);
+        setShowOTPInput(true);
+      } else {
+        setError(true);
+        console.error("Signup error:", data.data);
+      }
+    } catch (err) {
+      console.error("Signup error:", err);
+      setLoading1(false);
+      setError(true);
+    }
+  };
+
+  const handleOTPVerification = async () => {
+    setLoading1(true);
+    try {
+      const res = await fetch("http://localhost:3008/api/auth/verify-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          otp: parseInt(document.getElementById("otp").value),
+        }),
+      });
+      const data = await res.json();
+      setLoading1(false);
+
+      if (data.msg === "success") {
+        localStorage.setItem("authToken", data.token);
+        localStorage.setItem("userData", JSON.stringify(data.data));
+        setLoading(false);
+        setData(data.data);
+      } else {
+        setError(true);
+      }
+    } catch (err) {
+      setLoading1(false);
+      setError(true);
+    }
   };
 
   return (
     <div className="w-full h-screen select-none overflow-hidden no-scrollbar ">
       {loading ? (
-        <div className="w-full  h-screen ">
-          <div className="p-3 flex flex-col justify-center h-[80%] max-w-xl   mx-auto">
-            <h1 className="text-4xl text-center text-red-700  font-bold my-7">
-              Signin
+        <div className="w-full h-screen">
+          <div className="p-3 flex flex-col justify-center h-[80%] max-w-xl mx-auto">
+            <h1 className="text-4xl text-center text-red-700 font-bold my-7">
+              {showOTPInput ? "Verify OTP" : isSignup ? "Signup" : "Signin"}
             </h1>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-              }}
-              className="flex flex-col gap-4"
-            >
-              <input
-                id="email"
-                className="bg-slate-300 p-3 rounded-lg"
-                placeholder="Email"
-                type="email"
-              />
-              <input
-                id="password"
-                className="bg-slate-300 p-3 rounded-lg"
-                placeholder="Password"
-                type="password"
-              />
 
-              <button
-                onClick={handleSignIn}
-                className="bg-red-700 disabled:bg-slate-200 text-white  self-center p-3 w-40 rounded-lg uppercase hover:opacity-95 disabled:opacity-90"
+            {showOTPInput ? (
+              <div className="flex flex-col gap-4">
+                <p className="text-center text-gray-600">
+                  Please enter the OTP sent to your email
+                </p>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                  }}
+                  className="flex flex-col gap-4"
+                >
+                  <input
+                    id="otp"
+                    className="bg-slate-300 p-3 rounded-lg"
+                    placeholder="Enter OTP"
+                    type="number"
+                  />
+                  <button
+                    onClick={handleOTPVerification}
+                    className="bg-red-700 disabled:bg-slate-200 text-white self-center p-3 w-40 rounded-lg uppercase hover:opacity-95 disabled:opacity-90"
+                  >
+                    {loading1 ? "loading.." : "Verify OTP"}
+                  </button>
+                </form>
+                <button
+                  onClick={() => {
+                    setShowOTPInput(false);
+                    setIsSignup(false);
+                  }}
+                  className="text-red-700 underline"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                }}
+                className="flex flex-col gap-4"
               >
-                {loading1 ? "loading.." : "sign in"}
-              </button>
-            </form>
-            <div className="flex mt-3"></div>
-            {error && <h1 className="text-red-500">invalid credentials</h1>}
+                {isSignup && (
+                  <input
+                    id="username"
+                    className="bg-slate-300 p-3 rounded-lg"
+                    placeholder="Username"
+                    type="text"
+                  />
+                )}
+                <input
+                  id="email"
+                  className="bg-slate-300 p-3 rounded-lg"
+                  placeholder="Email"
+                  type="email"
+                />
+                <input
+                  id="password"
+                  className="bg-slate-300 p-3 rounded-lg"
+                  placeholder="Password"
+                  type="password"
+                />
+
+                <button
+                  onClick={isSignup ? handleSignup : handleSignIn}
+                  className="bg-red-700 disabled:bg-slate-200 text-white self-center p-3 w-40 rounded-lg uppercase hover:opacity-95 disabled:opacity-90"
+                >
+                  {loading1 ? "loading.." : isSignup ? "sign up" : "sign in"}
+                </button>
+              </form>
+            )}
+
+            {!showOTPInput && (
+              <div className="flex mt-3 justify-center">
+                <p className="text-gray-600">
+                  {isSignup
+                    ? "Already have an account?"
+                    : "Don't have an account?"}
+                  <span
+                    className="text-red-700 ml-2 cursor-pointer"
+                    onClick={() => {
+                      setIsSignup(!isSignup);
+                      setError(false);
+                    }}
+                  >
+                    {isSignup ? "Sign In" : "Sign Up"}
+                  </span>
+                </p>
+              </div>
+            )}
+
+            {error && (
+              <h1 className="text-red-500 text-center">Something went wrong</h1>
+            )}
           </div>
         </div>
       ) : (
